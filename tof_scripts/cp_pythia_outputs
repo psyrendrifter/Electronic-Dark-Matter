@@ -1,0 +1,124 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import math as m
+
+with open('m_10GeV_w_1km/pythia_vertex/Output/_defaultset/MadAnalysis5job.saf') as f: #FILENAME
+        content = f.readlines()
+content = [x.strip() for x in content]
+content = [x.split(" ") for x in content] #parses the .saf file and gets better format
+
+
+p_dvertex = []
+d_dvertex = 1000
+norm = 1
+width = 0
+
+
+
+
+
+for i in range(len(content)):
+    if len(content[i])>2 and content[i][1] == 'nbins': #using structure of .saf file
+        d_dvertex = (float(content[i+1][15])-float(content[i+1][12]))/float(content[i+1][0])
+        #finds bin width and assigns to d_dvertex
+	#Note that we assume that the bin width is given in mm, as we plot rho_d (given in mm) and p_dvertex on the same plot
+    if len(content[i])>6 and content[i][5] == 'event-weights':
+        norm = float(content[i][0]) #get the total integrated luminosity? Whatever normalizes the distribution to unity
+
+for i in range(len(content)):
+    if content[i][0] == '<Data>':
+        for j in range(100):
+            p_dvertex.append(float(content[i+2+j][0])/(norm*d_dvertex)) #add a new value into our discrete distribution. p_dvertex ~ d_P/d_dvertex
+
+####p_modp NORMALIZATION########################
+normtest = 0
+for i in range(len(p_dvertex)):
+    normtest+=p_dvertex[i]*d_dvertex
+   
+#print normtest
+for i in range(len(p_dvertex)):
+    p_dvertex[i]=p_dvertex[i]/normtest
+#################################################
+
+
+#######DEBUG BLOCK#############################
+#print content
+#print d_dvertex
+#print norm
+#print p_dvertex
+################################################
+
+distances = np.linspace(0, len(p_dvertex)*d_dvertex*1000000, num = len(p_dvertex)) #The number of data points we have in increments of d_dvertex, so we can graph p_dvertex against distance
+
+for i in range(len(p_dvertex)):
+    if i == 0:
+        plt.errorbar(distances[i], p_dvertex[i]/1000000, fmt = 'ro', label = 'pythia GeV output')
+    else:
+        plt.errorbar(distances[i], p_dvertex[i]/1000000, fmt = 'ro')
+#plot of true distance travelled as given by pythia
+
+plt.legend()
+
+
+content = []
+
+with open('m_1TeV_w_1km/pythia_vertex/Output/_defaultset/MadAnalysis5job.saf') as f: #FILENAME
+        content = f.readlines()
+content = [x.strip() for x in content]
+content = [x.split(" ") for x in content] #parses the .saf file and gets better format
+
+
+p_dvertex = []
+d_dvertex = 1000
+norm = 1
+width = 0
+
+
+
+
+
+for i in range(len(content)):
+    if len(content[i])>2 and content[i][1] == 'nbins': #using structure of .saf file
+        d_dvertex = (float(content[i+1][15])-float(content[i+1][12]))/float(content[i+1][0])
+        #finds bin width and assigns to d_dvertex
+	#Note that we assume that the bin width is given in mm, as we plot rho_d (given in mm) and p_dvertex on the same plot
+    if len(content[i])>6 and content[i][5] == 'event-weights':
+        norm = float(content[i][0]) #get the total integrated luminosity? Whatever normalizes the distribution to unity
+
+for i in range(len(content)):
+    if content[i][0] == '<Data>':
+        for j in range(100):
+            p_dvertex.append(float(content[i+2+j][0])/(norm*d_dvertex)) #add a new value into our discrete distribution. p_dvertex ~ d_P/d_dvertex
+
+####p_modp NORMALIZATION########################
+normtest = 0
+for i in range(len(p_dvertex)):
+    normtest+=p_dvertex[i]*d_dvertex
+   
+#print normtest
+for i in range(len(p_dvertex)):
+    p_dvertex[i]=p_dvertex[i]/normtest
+#################################################
+
+
+#######DEBUG BLOCK#############################
+#print content
+#print d_dvertex
+#print norm
+#print p_dvertex
+################################################
+
+distances = np.linspace(0, len(p_dvertex)*d_dvertex*1000000, num = len(p_dvertex)) #The number of data points we have in increments of d_dvertex, so we can graph p_dvertex against distance
+
+for i in range(len(p_dvertex)):
+    if i == 0:
+        plt.errorbar(distances[i], p_dvertex[i]/1000000, fmt = 'ko', label = 'pythia TeV output')
+    else:
+        plt.errorbar(distances[i], p_dvertex[i]/1000000, fmt = 'ko')
+#plot of true distance travelled as given by pythia
+
+plt.xlim(1000000, 10000000) #will this help?
+plt.ylim(0, 5e-8)
+
+plt.legend()
+plt.show()

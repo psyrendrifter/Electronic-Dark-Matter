@@ -1,0 +1,131 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import math as m
+
+#this script takes in a MadAnalysis5job.saf file containing a histogram with an input width and modp (magnitude of total momentum) histogram, 
+#write the width and mass in the .saf file as:
+# width {width in MeV (mm)} MeV (mm)
+# mass {mass in GeV} GeV
+
+with open('Analysis/Output/_defaultset/MadAnalysis5job.saf') as f:
+        content = f.readlines()
+content = [x.strip() for x in content]
+content = [x.split(" ") for x in content] #parses the .saf file and gets better format
+
+#.saf converter possibly needed here: CHECK if there's an error
+
+p_modp = []
+dmodp = 1000
+norm = 1
+width = 0
+
+for i in range(len(content)):
+    if len(content[i])>2 and content[i][1] == 'nbins': #using structure of .saf file
+        dmodp = (float(content[i+1][15])-float(content[i+1][12]))/float(content[i+1][0])
+        #finds bin width and assigns to delta_modp
+    if len(content[i])>6 and content[i][5] == 'event-weights':
+        norm = float(content[i][0]) #get the total integrated luminosity? Whatever normalizes the distribution to unity
+    if len(content[i])>2 and content[i][1] == 'width': #you HAVE to comment in the width and mass
+	if content[i][3] == 'MeV':
+		width = float(content[i][2])/(1.97327e-10)
+	if content[i][3] == 'mm':
+		width = 1/float(content[i][2])
+    if len(content[i])>3 and content[i][1] == 'mass' and content [i][3] == 'GeV':
+	mass = float(content[i][2]) #Mass in GeV
+###CHECK UNITS
+
+
+for i in range(len(content)):
+    if content[i][0] == '<Data>':
+        for j in range(100):
+            p_modp.append(float(content[i+2+j][0])/(norm*dmodp)) #add a new value into our discrete distribution: probability that modp is within the value between. p_modp ~ dP/dmodp
+
+
+#######DEBUG BLOCK##############################
+#print content
+#print width
+#print dmodp
+#print norm
+#print p_modp
+################################################
+
+####CHECK p_modp NORMALIZATION##################
+"""normtest = 0
+for i in range(len(p_modp)):
+    normtest+=p_modp[i]*dmodp
+    
+print normtest"""
+################################################
+
+
+if width == 0:
+    print('Particle width is 0!')
+
+lengths = np.linspace(0, 1/width, num = len(p_modp))
+rho_d = [] #this will hold our values for the pdf of survival time
+modp = np.linspace(1, 1+dmodp*len(p_modp), num = len(p_modp)) #the values of gamma in the bins, with increments of dmodp
+
+rho_d_simp = [] #this will hold a simplified (i.e. what we expect MG5 to be doing) tof variable
+
+i = 0
+
+for d in lengths:
+    rho = 0
+    rho_simp
+
+    for i in range(len(modp)):
+        rho += dmodp * width*mass/modp[i] * m.e**(-d * width*mass/modp[i]) * p_modp[i]
+        
+    rho_d.append(rho)
+    rho_d_simp.append(width * m.e**(-d * width))
+
+#print rho_d
+####NORMALIZATION OF RHO_D#########################
+norm = 0
+for i in range(len(rho_d)-1):
+    norm+=rho_d[i]*(lengths[i+1]-lengths[i])
+
+#norm+=rho_d[len(rho_d)-1]*(lengths[len(lengths)-1]-lengths[len(lengths)-2])#
+#      ^includes the last riemannian segment of the distribution^           #
+#print norm
+
+for i in range(len(rho_d)):
+    rho_d[i] = rho_d[i]/norm
+####################################################
+
+
+plt.figure(1)
+plt.title("plot of pdf in distance")
+plt.xlabel("length (mm)")
+plt.ylabel("pdf of survival (1/mm)")
+
+for i in range(len(lengths)):
+    plt.errorbar(lengths[i], rho_d[i], fmt = 'ro')
+    plt.errorbar(lengths[i], rho_d_simp[i], fmt = 'go')
+plt.show()
+
+
+######TEST OF p_modp DATA/INPUT######################
+"""xs = np.linspace(0, 1000, num = 100)
+plt.figure(2)
+plt.title("")
+plt.xlabel("modp")
+plt.ylabel("p_modp")
+for i in range(len(p_modp)):
+	plt.errorbar(xs[i], p_modp[i], fmt = 'kx')
+
+plt.show()"""
+######################################################
+
+#######LOG LINEAR PLOT################################
+plt.figure(3):
+plt.yscale('log')
+
+plt.title("plot of pdf in distance")
+plt.xlabel("length (mm)")
+plt.ylabel("pdf of survival (1/mm)")
+
+for i in range(len(lengths)):
+    plt.errorbar(lengths[i], rho_d[i], fmt = 'ro')
+plt.show()
+

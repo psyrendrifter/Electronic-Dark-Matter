@@ -1,0 +1,11 @@
+Notes on Versions:
+
+v1.0:: Nice except for the peak near zero. It is deprecated due to its use of an intermediary histogram. See also the note on normalization for v2.0.
+
+v2.0:: Nice except for the peak near zero, and is deprecated due to its normalization through the range it considers (i.e. the distributions are normalized in the range of the graph, not through all space).
+	--Though the expected output should be normalized by design, it does not seem to be (i.e. some ranges yield an integral >1)
+
+v2.1:: So far fixes the issues of 2.0 with normalization, but does not yield consistent results.
+	--Expected output and pythia output are not aligned
+	--Though the expected output should be normalized by design, it does not seem to be
+	--For the tof_test m_1GeV_w_1pm the expected output is zero everywhere (or ~e-155), seems related to the normalization issue

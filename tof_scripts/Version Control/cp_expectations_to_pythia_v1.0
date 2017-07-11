@@ -1,0 +1,262 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import math as m
+import gzip
+
+#*********************************************************************
+#								     *
+#                  Pythia Vertex Distance Distribution               *
+#               					             *
+#                      (Directly from Pythia/Ma5)                    *
+#              						             *
+#								     *
+#*********************************************************************
+
+#this takes in a MadAnalysis5job.saf file containing a histogram with a VERTD histogram, 
+
+################################################
+#Reading Data
+################################################
+
+with open('pythia_vertex/Output/_defaultset/MadAnalysis5job.saf') as f:
+        content = f.readlines()
+content = [x.strip() for x in content]
+content = [x.split(" ") for x in content] #parses the .saf file and gets better format
+
+
+p_dvertex = []
+d_dvertex = 0
+norm = 0
+
+for i in range(len(content)):
+    if len(content[i])>2 and content[i][1] == 'nbins': #using structure of .saf file
+        d_dvertex = (float(content[i+1][15])-float(content[i+1][12]))/float(content[i+1][0])
+        #finds bin width and assigns to d_dvertex
+	#Note that we assume that the bin width is given in mm, as we plot rho_d (given in mm) and p_dvertex on the same plot
+    if len(content[i])>6 and content[i][5] == 'event-weights':
+        norm = float(content[i][0]) #get the total integrated luminosity? Whatever normalizes the distribution to unity
+
+for i in range(len(content)):
+    if content[i][0] == '<Data>':
+        for j in range(100):
+            p_dvertex.append(float(content[i+2+j][0])/(norm*d_dvertex))
+#add a new value into our discrete distribution. p_dvertex ~ d_P/d_dvertex
+
+################################################
+#p_vertex Normalization
+################################################
+normtest = 0
+for i in range(len(p_dvertex)):
+    normtest+=p_dvertex[i]*d_dvertex
+   
+#print normtest
+for i in range(len(p_dvertex)):
+    p_dvertex[i]=p_dvertex[i]/normtest
+
+#Test:
+#normtest = 0
+#for i in range(len(p_dvertex)):
+#    normtest+=p_dvertex[i]*d_dvertex
+
+################################################
+#Debug Block
+################################################
+#print content
+#print d_dvertex
+#print normtest
+#print p_dvertex
+
+################################################
+#Plotting
+################################################
+distances = np.linspace(0, len(p_dvertex)*d_dvertex, num = len(p_dvertex)) #The number of data points we have in increments of d_dvertex, so we can graph p_dvertex against distance
+dx = distances[1]-distances[0]
+
+for i in range(len(p_dvertex)):
+    if i == 0:
+        plt.errorbar(distances[i]+dx/2., p_dvertex[i], fmt = 'ro', label = 'pythia output')
+    else:
+        plt.errorbar(distances[i]+dx/2., p_dvertex[i], fmt = 'ro')
+#plot of true distance travelled as given by pythia
+
+#plt.xlim(0, 1000000)
+#plt.ylim(0, 1.0e-7)
+
+
+
+
+
+
+
+
+#*********************************************************************
+#								     *
+#        Calculation of Expected Vertex Distance Distribution        *
+#               (Uses an integral expression/transform of            *
+#                distributions of momentum magnitude to              *
+#              predict distance distribution in lab frame)           *
+#								     *
+#*********************************************************************
+
+#this next part takes in a MadAnalysis5job.saf file containing a histogram with a modp (magnitude of momentum) histogram, 
+#write the width and mass in the .saf file as:
+# width {width in MeV (mm)} MeV(mm)
+# mass {mass in GeV} GeV
+
+
+################################################
+#Reading Data
+################################################
+with open('modp_distribution/Output/_defaultset/MadAnalysis5job.saf') as f:
+        content = f.readlines()
+content = [x.strip() for x in content]
+content = [x.split(" ") for x in content] #parses the .saf file and gets better format
+
+
+p_modp = []
+dmodp = 0
+norm = 0
+width = 0
+
+for i in range(len(content)):
+    if len(content[i])>2 and content[i][1] == 'nbins': #using structure of .saf file
+        dmodp = (float(content[i+1][15])-float(content[i+1][12]))/float(content[i+1][0])
+        #finds bin width and assigns to delta_modp
+    if len(content[i])>6 and content[i][5] == 'event-weights':
+        norm = float(content[i][0]) #get the total integrated luminosity? Whatever normalizes the distribution to unity
+    if len(content[i])>2 and content[i][1] == 'width': #you HAVE to comment in the width and mass
+	if content[i][3] == 'MeV':
+		width = float(content[i][2])/(1.97327e-10)
+	if content[i][3] == 'mm':
+		width = 1/float(content[i][2])
+    if len(content[i])>3 and content[i][1] == 'mass' and content [i][3] == 'GeV':
+	mass = float(content[i][2])
+
+for i in range(len(content)):
+    if content[i][0] == '<Data>':
+        for j in range(100):
+            p_modp.append(float(content[i+2+j][0])/(norm*dmodp)) #add a new value into our discrete distribution: probability that modp is within the value between. p_modp ~ dP/dmodp
+
+
+################################################
+#Debug Block
+################################################
+#print content
+#print width
+#print mass
+#print dmodp
+#print norm
+#print p_modp
+
+
+################################################
+#p_modp Normalization
+################################################
+normtest = 0
+for i in range(len(p_modp)):
+    normtest+=p_modp[i]*dmodp
+    
+for i in range(len(p_modp)):
+    p_modp[i]=p_modp[i]/normtest
+
+#Test:
+#normtest = 0
+#for i in range(len(p_modp)):
+#    normtest+=p_modp[i]*dmodp
+#print normtest
+
+#################################################
+# Setting Distribution
+#################################################
+if width == 0:
+    print('Particle width is 0! Input particle width!')
+
+lengths = np.linspace(0, len(p_dvertex)*d_dvertex, num = len(p_dvertex)) #this must span the same length as the pythia vertex output
+
+rho_d = [] #this will hold our values for the pdf of survival time
+
+modp = np.linspace(dmodp/2., dmodp*(len(p_modp)+1/2.), num = len(p_modp)) #the values of modp in the bins, with increments of dmodp
+
+#rho_d_simp = [] #this will hold a simplified (i.e. proper time) tof variable
+
+i = 0
+
+for x in lengths:
+    rho = 0
+
+    for i in range(len(modp)):
+        rho += dmodp * width*mass/(modp[i]) * m.e**(-x * width*mass/(modp[i])) * p_modp[i]
+	        
+    rho_d.append(rho)
+    #rho_d_simp.append(width * m.e**(-d * width))
+#UNITS HERE ARE mm for lengths and 1/mm for rho_d
+
+
+################################################
+#rho_d Normalization
+################################################
+norm = 0
+
+for i in range(len(rho_d)-1):
+    norm+=rho_d[i]*(lengths[i+1]-lengths[i])
+
+#norm+=rho_d[len(rho_d)-1]*(lengths[len(lengths)-1]-lengths[len(lengths)-2])#
+#      ^includes the last riemannian segment of the distribution^           #
+#print norm
+
+for i in range(len(rho_d)):
+    rho_d[i] = rho_d[i]/norm
+
+#norm = 0
+#for i in range(len(rho_d)-1):
+#    norm+=rho_d[i]*(lengths[i+1]-lengths[i])
+#print norm#checks that we're normalized to unity
+
+
+################################################
+#Plotting
+################################################
+plt.figure(1)
+plt.title("pdf of distance: expected vs. pythia output")
+plt.xlabel("length (mm)")
+plt.ylabel("pdf of survival (1/mm)")
+
+#plt.hist(list, bins=100, normed=1) #MG5 lhe output of tof
+
+for i in range(len(lengths)):
+    if i == 0:
+        plt.errorbar(lengths[i], rho_d[i], fmt = 'ko', label = 'expected distance travelled') 
+    else:
+        plt.errorbar(lengths[i], rho_d[i], fmt = 'ko')
+#Our expectation for tof based on dynamics
+
+#plt.yscale('log') #adds log scale to y axis
+
+
+plt.legend()
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,32 @@
+Use of the scripts in this folder require specific formatting in your MA5 Analyses:
+
+first: cd path/to/mg5output
+
+lhe_parse requires lhe events in a folder labeled Events/tof_0
+	This script returns a histogram of the MG5 output time of flights of a higgs (for example, after a decay) using the higgs pdf '25'. This is easily changed -- see the file.
+
+MA5_tof_pdf_d accesses Analysis/Output/Madanalysis5job.saf
+	It requires a completed madanalysis with ONLY the magnitude of the momentum (gamma/boost factor) of a particle plotted: the relevant information is accessed from the Output/Madanalysis5job.saf file. The output madanalysis file must be in a folder called 'Analysis'.
+
+compare_MG5_and_expected_outputs requires the same path/information as the above, but utilizes the language of lhe_parse -- i.e. it requires higgs decay
+
+
+
+
+MA5_tof_pdf_t accesses Output/Madanalysis5job.saf -- you must cd to the relevant madanalysis output folder
+	It requires a completed madanalysis with ONLY the magnitude of the gamma/boost factor of a particle plotted: the relevant information is accessed from the Output/Madanalysis5job.saf file.
+
+
+
+The 3 MA5 scripts create an accurate time of flight pdf for a particle, but require you to manually input width (and mass) into the ma5 analyses -- see the code for formatting
+
+compare_expectations_v_pythia is a bit different 
+
+/Version\ Control/cp_expectations_to_pythiav1.0-- it requires the same input of width and mass in the MA5 output, however it requires two folders, and is meant to test the electronic dark matter model:
+		1) modp_distribution, which contains the MA5 output resulting from 'plot P(x)' and nothing else
+		2)pythia_vertex, which contains the MA5_vertex output resultsing from 'plot VERTD(e-)', the distance to the decay vertex of x> e e~
+
+This has been tested, and shows that pythia and our expectations are in good agreement.
+
+The next step is
+v2.0 -- this requies only the lhe file in the folder Events/tof_0, and directly access the momenta of the electronic Dark Matter to create expectations for decay length, and compares the resultant pdf to pythia output (created with MA5 as above, which once again needs to be in a folder called pythia_vertex)

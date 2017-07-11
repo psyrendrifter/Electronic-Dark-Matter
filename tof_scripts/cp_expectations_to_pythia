@@ -1,0 +1,227 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import math as m
+import gzip
+
+#v2.1
+#Version Notes:
+#We require that the madanalysis histogram be normalized to one
+	#This can be achieved with "plot {observable} [normalize2one]"
+#Still requires only lhe file and pythia_vertex containing VERTD(e-) data
+#Takes away normalization (assumes all distributions are naturally normalized)
+
+
+#*********************************************************************
+#								     *
+#                  Pythia Vertex Distance Distribution               *
+#               					             *
+#                      (Directly from Pythia/Ma5)                    *
+#              						             *
+#								     *
+#*********************************************************************
+
+#This takes in a MadAnalysis5job.saf file containing a histogram with a VERTD histogram
+
+
+################################################
+#Reading Data
+################################################
+
+with open('pythia_vertex/Output/_defaultset/MadAnalysis5job.saf') as f:
+        content = f.readlines()
+content = [x.strip() for x in content]
+content = [x.split(" ") for x in content] #parses the .saf file and gets better format
+
+
+p_dvertex = []
+d_dvertex = 0
+norm = 0
+width = 0
+
+
+for i in range(len(content)):
+    if len(content[i])>2 and content[i][1] == 'nbins': #using structure of .saf file
+        d_dvertex = (float(content[i+1][ len(content[i+1])-1 ])-float(content[i+1][ len(content[i+1])-4 ]))/float(content[i+1][0])
+        #finds bin width and assigns to d_dvertex
+	#this line requires exactly 1000 bins in the MA5 Graph
+	#Note that we assume that the bin width is given in mm, as we plot rho_d (given in mm) and 		p_dvertex on the same plot
+
+
+for i in range(len(content)):
+    if content[i][0] == '<Data>':
+        for j in range(100):
+            p_dvertex.append(float(content[i+2+j][0])/(d_dvertex)) #add a new value into our discrete distribution. p_dvertex ~ d_P/d_dvertex
+
+
+
+################################################
+#p_vertex Normalization
+################################################
+normtest = 0
+for i in range(len(p_dvertex)-1):
+    normtest+=p_dvertex[i+1]*d_dvertex
+#   
+#for i in range(len(p_dvertex)):
+#    p_dvertex[i]=p_dvertex[i]/normtest
+
+
+################################################
+#Debug Block
+################################################
+#print content
+#print d_dvertex
+print normtest
+#print p_dvertex
+
+
+############################################
+#Plotting
+################################################
+lengths = np.linspace(0, len(p_dvertex)*d_dvertex, num = len(p_dvertex)) #The number of data points we have in increments of d_dvertex, so we can graph p_dvertex against distance
+dx = lengths[1]-lengths[0]
+
+for i in range(len(p_dvertex)):
+    if i == 0:
+        plt.errorbar(lengths[i], p_dvertex[i], fmt = 'ro', label = 'pythia output')
+    else:
+        plt.errorbar(lengths[i], p_dvertex[i], fmt = 'ro')
+#plot of true distance travelled as given by pythia
+
+#plt.xlim()
+#plt.ylim()
+
+
+
+
+
+
+
+
+#*********************************************************************
+#								     *
+#        Calculation of Expected Vertex Distance Distribution        *
+#               (Uses an integral expression/transform of            *
+#                distributions of momentum magnitude to              *
+#              predict distance distribution in lab frame)           *
+#								     *
+#*********************************************************************
+
+
+#First, we take in the momentum spectrum of the particle with pdg code 'pdg' from the lhe file:
+
+#################################################
+# Reading .lhe File
+#################################################
+pdg = '5000001' #we choose to look at the momentum distribution of the x
+
+with gzip.open('Events/tof_0/unweighted_events.lhe.gz') as f:
+        lheFile = f.readlines()
+lheFile = [x.strip() for x in lheFile]
+lheFile = [x.split(" ") for x in lheFile]
+
+
+mass = 0
+width = 0
+N = 0
+momenta = []
+
+for i in range(len(lheFile)):
+    if lheFile[i][0] == pdg and len(lheFile[i]) == 4:
+        mass = float(lheFile[i][1])
+
+    if len(lheFile[i]) == 5 and lheFile[i][1] == pdg:
+        width = float(lheFile[i][2])*(5.068e12) #GeV -> 1/mm
+
+    if len(lheFile[i]) == 20 and lheFile[i][2] == 'Number':
+        N = float(lheFile[i][19])
+
+    if lheFile[i][0] == pdg and len(lheFile[i]) == 26:
+        momenta.append(m.sqrt(float(lheFile[i][19])**2+float(lheFile[i][20])**2+float(lheFile[i][21])**2))
+
+
+#################################################
+# Setting Distribution
+#################################################
+#lengths = np.linspace(0, len(p_dvertex)*d_dvertex, num = len(p_dvertex)) #this must span the same length as the pythia vertex output
+
+rho_d = [] #this will hold our values for the pdf of survival time
+
+for x in lengths:
+    rho_at_x = 0
+    for p in momenta:
+        rho_at_x += m.e**(-x * width*mass/p) * width*mass/(p*N)
+    rho_d.append(rho_at_x)
+
+testzero = 0
+for p in momenta:
+    testzero += width*mass/(N*p)
+#print testzero
+
+
+
+################################################
+#rho_d Normalization
+################################################
+norm = 0
+#
+for i in range(len(rho_d)-1):
+    norm+=rho_d[i+1]*(lengths[i+1]-lengths[i])
+#
+print norm
+#
+#for i in range(len(rho_d)):
+#    rho_d[i] = rho_d[i]/norm
+#
+
+################################################
+# Debug Block
+################################################
+#print lheFile
+#print momenta
+#plt.hist(momenta, bins = 100); plt.show()
+#print norm
+#print rho_d
+
+################################################
+# Plotting
+################################################
+plt.figure(1)
+plt.title("pdf of distance: expected vs. pythia output")
+plt.xlabel("length (mm)")
+plt.ylabel("pdf of survival (1/mm)")
+
+for i in range(len(lengths)):
+    if i == 0:
+        plt.errorbar(lengths[i], rho_d[i], fmt = 'ko', label = 'expected distance travelled') 
+    else:
+        plt.errorbar(lengths[i], rho_d[i], fmt = 'ko')
+#Our expectation for tof based on dynamics
+
+#plt.yscale('log')
+plt.legend()
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
